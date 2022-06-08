@@ -3,7 +3,7 @@ from scipy.linalg import null_space, inv, expm
 
 class L1_adapt:
 
-    def __init__(self,f,g,x_current,u_bl,wc=100,Ts=0.001):
+    def __init__(self,f,g,x_current,u_bl,wc=1,Ts=0.001):
         '''
         xdot = f(x) + g(x)u (control-affine structure)
         f: mapping from state space to state space (R^n)
@@ -76,7 +76,7 @@ class L1_adapt:
     
     def state_predictor(self, f,g,g_perp,x,u,x_hat,sigma_hat_m,sigma_hat_um,As,Ts):
         x_hat_dot = f+g*(u+sigma_hat_m)+np.matmul(g_perp,sigma_hat_um)+np.matmul(As,x_hat-x)
-        x_hat = x_hat + x_hat_dot*Ts #Euler extrapolation
+        x_hat = x + x_hat_dot*Ts #Euler extrapolation
         return x_hat
 
     
@@ -99,7 +99,9 @@ class L1_adapt:
         self.x = self.plant(x, u)
         self.x_tilde = self.update_error(self.x_hat, self.x)
         self.sigma_hat_m, self.sigma_hat_um = self.adaptive_law(self.gg, self.x_tilde, self.As, self.Ts, self.n, self.m )
-        u_l1, self.l = self.low_pass(self.sigma_hat_m, self.wc, self.l, self.dt)
+        u_l1, self.l = self.low_pass(self.sigma_hat_m, self.wc, self.l, 0.1)
+        # print(self.sigma_hat_m)
+        # print(u_l1)
 
         return self.x, self.u_bl+u_l1
 
