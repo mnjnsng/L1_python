@@ -3,7 +3,7 @@ from scipy.linalg import null_space, inv, expm
 
 class L1_adapt:
 
-    def __init__(self,f,g,x_current,u_bl,wc=1,Ts=0.001):
+    def __init__(self,f,g,x_current,u_bl,u_min= -np.infty, u_max = np.inf, wc=1,Ts=0.001):
         '''
         xdot = f(x) + g(x)u (control-affine structure)
         f: mapping from state space to state space (R^n)
@@ -20,6 +20,8 @@ class L1_adapt:
         self.Ts = Ts
         self.x = x_current # Initialization of state vector 
         self.u_bl = u_bl
+        self.u_min = u_min
+        self.u_max = u_max
 
 
         # Initialize parameters needed for L1 controller
@@ -32,6 +34,8 @@ class L1_adapt:
         self.dt = 2*self.wc*self.Ts #low pass filter. Normalizing filtering frequency
         self.sigma_hat_m = np.zeros(shape = (self.m,1))
         self.sigma_hat_um = np.zeros(shape = (self.n-self.m,1) )
+
+        self.t = 0
 
     
     def print_variables(self):
@@ -56,8 +60,9 @@ class L1_adapt:
     def plant(self,x,u):
         # This will be a gym environment.
         # this should update self.x
-        x_dot = self.f+self.g*(u+np.random.normal(0,0.1))+np.matmul(self.g_perp,np.random.normal(0,0.1,size=(3,1)))
+        x_dot = self.f+self.g*(u+1.5*np.sin(self.t)) # +np.matmul(self.g_perp,np.random.normal(0,0.1,size=(3,1)))
         x_new = x + x_dot*self.Ts
+        self.t += self.Ts
         return x_new
         
 
@@ -100,10 +105,29 @@ class L1_adapt:
         self.x_tilde = self.update_error(self.x_hat, self.x)
         self.sigma_hat_m, self.sigma_hat_um = self.adaptive_law(self.gg, self.x_tilde, self.As, self.Ts, self.n, self.m )
         u_l1, self.l = self.low_pass(self.sigma_hat_m, self.wc, self.l, 0.1)
-        # print(self.sigma_hat_m)
-        # print(u_l1)
+        
+        u_bl = self.u_bl@self.x
 
-        return self.x, self.u_bl+u_l1
+        if u_bl + u_l1 > self.u_max:
+            u_next = self.u_max
+        elif u_bl + u_l1 < self.u_min:
+            u_next = self.u_min
+        else:
+            u_next = u_bl + u_l1
+
+        return self.x, u_next
+
+    def baseline_control(self, x,u):
+        self.x = self.plant(x, u)
+        u_bl = -self.u_bl@self.x
+        if u_bl > self.u_max:
+            u_next = self.u_max
+        elif u_bl < self.u_min:
+            u_next = self.u_min
+        else:
+            u_next = u_bl
+        return self.x, u_next
+
 
 # def f(x):
 #     Am = np.array([[0,1,0,0],[0,0, 0, -9.8],[0, 0, 0, 32.667],[0, 0, 1, 0]])
