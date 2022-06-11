@@ -1,12 +1,12 @@
 import numpy as np
 from scipy.linalg import null_space, inv, expm
+from scipy import signal
 from low_pass_filter import LTISystem
 import matplotlib.pyplot as plt
 import control
 
 class L1_adapt(object):
-
-    def __init__(self,f,g,wc=1,Ts=0.001):
+    def __init__(self,f,g,wc=100,Ts=0.001):
         '''
         xdot = f(x) + g(x)u (control-affine structure)
         f: mapping from state space to state space (R^n)
@@ -25,7 +25,9 @@ class L1_adapt(object):
         self.wc = wc # cutoff frequency
         self.Ts = Ts # sampling period
         self.dt = 2*self.wc*self.Ts #low pass filter. Normalizing filtering frequency
-        self.lpf=LTISystem(A=np.array([-self.wc]),B=np.array([1]),C=np.array([self.wc]))         
+        # self.lpf=LTISystem(A=np.array([-self.wc]),B=np.array([1]),C=np.array([self.wc]))       
+
+        self.lpf=signal.butter(1, self.wc,'lowpass',fs = 1/self.Ts, output= 'sos') #lowpass filter         
 
         # Initialization of state, error and input vectors 
         self.x = np.zeros((4,1)) 
@@ -45,7 +47,8 @@ class L1_adapt(object):
     
     
     def plant(self,x,u):
-        sigma_m = 0.5*np.sin(self.time)
+        sigma_m = 0.7*np.sin(0.5*self.time)
+        #sigma_um = np.random.normal(0,0.1,size=(3,1))
         sigma_um = np.zeros((3,1))
         x_dot = self.f(x)+self.g(x)@(u+sigma_m) + self.g_perp(x)@(sigma_um)
         x_next = x + x_dot*self.Ts
@@ -69,7 +72,7 @@ class L1_adapt(object):
     
     def state_predictor(self,x,u,sigma_hat_m,sigma_hat_um):
 
-        x_hat_dot = self.f(x)+self.g(x)@(u+sigma_hat_m)+np.matmul(self.g_perp(x),sigma_hat_um) #+np.matmul(self.As,self.x_tilde)
+        x_hat_dot = self.f(x)+self.g(x)@(u+sigma_hat_m)+np.matmul(self.g_perp(x),sigma_hat_um) +np.matmul(self.As,self.x_tilde)
         self.x_hat = self.x_hat + x_hat_dot*self.Ts #Euler extrapolation
         
         return self.x_hat
@@ -78,22 +81,26 @@ class L1_adapt(object):
 
         sigma_hat_m, sigma_hat_um = self.adaptive_law(self.x_tilde)
         
-        # u=-self.lpf.get_next_state(sigma_hat_m+u_bl,0.0001)
-        u = u_bl-sigma_hat_m
+        # u_l1=-self.lpf.get_next_state(sigma_hat_m,self.dt)
+        
+        u_l1= -signal.sosfilt(self.lpf,sigma_hat_m)
+        print(sigma_hat_m, ' filtered to ', u_l1)
+        u = u_bl+u_l1
         #print(u)
         #print(self.x_tilde)
         #print(sigma_hat_m)
-        if u >= 1:
-            u=np.array([[1]])
-        elif u <=-1:
-            u=np.array([[-1]])
+        # if u >= 1:
+        #     u=np.array([[1]])
+        # elif u <=-1:
+        #     u=np.array([[-1]])
 
         self.x = self.plant(x, u)
         self.x_hat = self.state_predictor(x,u,sigma_hat_m, sigma_hat_um)
         self.x_tilde = self.update_error()
     
-
         return u
+
+
 
 def f(x):
      Am = np.array([[0,1,0,0],[0,0, 0, -9.8],[0, 0, 0, 32.667],[0, 0, 1, 0]])
@@ -118,6 +125,7 @@ def lqr_policy(observation):
 
     K, S, E = control.lqr(A,B,Q,R)
 
+
     action = -K@observation
 
 
@@ -128,32 +136,24 @@ def lqr_policy(observation):
     else:
         return action
 
-
-# adaptive_controller = L1_adapt(f,g)
-# observation=np.zeros((4,1))
-# obs_list=[]
-# policy=[]
-
-# for _ in range(200):
-    
-#     u_bl= lqr_policy(observation)
-
-#     u=adaptive_controller.get_control_input(observation,u_bl)
-    
-#     observation=adaptive_controller.plant(observation,u)
-    
-#     obs_list.append(observation[3])
-#     policy.append(u.squeeze(0))
-
-
-# plt.plot(np.arange(200),obs_list)
-# plt.show()
-# plt.plot(np.arange(200),policy,'r')
-# plt.show()
-
 adaptive_controller = L1_adapt(f,g)
-x= np.array([[0,0,0.1,0.0005]]).T
-u_bl= 35.56
-sigma_hat_m = np.array([[0.5]])
-sigma_hat_um = np.array([[0.1,0.5,0.1]]).T
-adaptive_controller.get_control_input(x,u_bl)
+observation=np.zeros((4,1))
+obs_list=[]
+policy=[]
+
+for _ in range(1000):
+    
+    u_bl= lqr_policy(observation)
+
+    u=adaptive_controller.get_control_input(observation,u_bl)
+    
+    observation=adaptive_controller.plant(observation,u)
+    
+    obs_list.append(observation[3])
+    policy.append(u.squeeze(0))
+
+t = np.linspace(0,20,1000)
+plt.plot(t,obs_list)
+plt.show()
+plt.plot(t,policy,'r')
+plt.show()
