@@ -49,7 +49,8 @@ class L1_adapt(object):
         sigma_um = np.zeros((3,1))
         x_dot = self.f(x)+self.g(x)@(u+sigma_m) + self.g_perp(x)@(sigma_um)
         x_next = x + x_dot*self.Ts
- 
+        self.time += self.Ts
+
         return x_next
 
     def adaptive_law(self,x_tilde):
@@ -88,4 +89,3 @@ class L1_adapt(object):
         self.x_tilde = self.update_error()
 
         return u
-
