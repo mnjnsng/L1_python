@@ -18,13 +18,14 @@ class L1_adapt(object):
         self.f = f
         self.g = g
         self.g_perp = lambda x : null_space(self.g(x).T)
+        self.time = 0
     
         #low pass filter
         self.wc = wc # cutoff frequency
         self.Ts = Ts # sampling period
-        self.dt = 2*self.wc*self.Ts #low pass filter. Normalizing filtering frequency
-        self.lpf=LTISystem(A=np.array([-self.wc]),B=np.array([1]),C=np.array([self.wc]))         
+        self.lpf=LTISystem(A=np.array([-self.wc]),B=np.array([1]),C=np.array([self.wc]))       
 
+        
         # Initialization of state, error and input vectors 
         self.x = np.zeros((4,1)) 
         self.x_tilde = np.zeros((4,1))
@@ -43,8 +44,10 @@ class L1_adapt(object):
     
     
     def plant(self,x,u):
-
-        x_dot = self.f(x)+self.g(x)@(u+np.random.normal(0,1)) + self.g_perp(x)@(np.random.normal(0,1,size = (3,1)))
+        sigma_m = np.sin(0.5*self.time)
+        #sigma_um = np.random.normal(0,0.1,size=(3,1))
+        sigma_um = np.zeros((3,1))
+        x_dot = self.f(x)+self.g(x)@(u+sigma_m) + self.g_perp(x)@(sigma_um)
         x_next = x + x_dot*self.Ts
  
         return x_next
@@ -73,10 +76,8 @@ class L1_adapt(object):
     def get_control_input(self,x,u_bl):
 
         sigma_hat_m, sigma_hat_um = self.adaptive_law(self.x_tilde)
-        u_l1=self.lpf.get_next_state(sigma_hat_m,self.dt)
-
-        u=u_bl+u_l1
-
+        u_l1=-self.lpf.get_next_state(sigma_hat_m,self.Ts)
+        u = u_bl+u_l1
         if u >= 1:
             u=np.array([[1]])
         elif u <=-1:
@@ -87,62 +88,4 @@ class L1_adapt(object):
         self.x_tilde = self.update_error()
 
         return u
-
-
-def f(x):
-     Am = np.array([[0,1,0,0],[0,0, 0, -9.8],[0, 0, 0, 32.667],[0, 0, 1, 0]])
-     return np.matmul(Am,x)
-
-def g(x):
-    Bm = np.array([[0,2,-3.33,0]]).T
-    return Bm
-
-
-
-
-def lqr_policy(observation):
-
-    Q = np.identity(4)
-    R = np.identity(1)
-
-    # linearization
-    A = np.array([[0,1,0,0],[0,0, 0, -9.8],[0, 0, 0, 32.667],[0, 0, 1, 0]])
-
-    B = np.array([[0,2,-3.33,0]]).T
-
-    K, S, E = control.lqr(A,B,Q,R)
-
-    action = -K@observation
-
-
-    if action >= 1:
-        return np.array([[1]])
-    elif action <=-1:
-        return np.array([[-1]])
-    else:
-        return action
-
-
-adaptive_controller = L1_adapt(f,g)
-observation=np.zeros((4,1))
-obs_list=[]
-policy=[]
-
-for _ in range(1000):
-    
-    u_bl= lqr_policy(observation)
-
-    u=adaptive_controller.get_control_input(observation,u_bl)
-    
-    observation=adaptive_controller.plant(observation,u)
-    
-    obs_list.append(observation[3])
-    policy.append(u.squeeze(0))
-
-
-plt.plot(np.arange(1000),obs_list)
-plt.show()
-plt.plot(np.arange(1000),policy,'r')
-plt.show()
-
 
