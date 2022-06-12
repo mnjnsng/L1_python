@@ -1,2 +1,5 @@
 # L1_python
- Python translation of L1 controller from Simulink
+ Python L1 controller for OpenAI GYM environment.
+ 
+1. Setup the environment by following the Readme in the gym env folder.
+2. Run cartpole_lqr_l1.py
