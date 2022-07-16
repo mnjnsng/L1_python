@@ -13,8 +13,8 @@ class CartPoleContinuousEnv(CartPoleEnv):
         self.min_action = np.float32(-1.0)
         self.max_action = np.float32(1.0)
         self.action_space = spaces.Box(low=self.min_action, high=self.max_action, shape=(1,), )
-        self.observation_noise = 0.0
         self.time = 0.0
+
     def step(self, action):
         assert self.action_space.contains(action), "%r (%s) invalid" % (action, type(action))
 
@@ -30,10 +30,9 @@ class CartPoleContinuousEnv(CartPoleEnv):
             act = self.min_action
 
         force = self.force_mag * act
-
         # Note: everything below this is same as gym's cartpole step fun.
         state = self.state
-        x, x_dot, theta, theta_dot = state 
+        x, x_dot, theta, theta_dot = state
         costheta = math.cos(theta)
         sintheta = math.sin(theta)
         temp = (force + self.polemass_length * theta_dot * theta_dot * sintheta) / self.total_mass
@@ -70,6 +69,5 @@ class CartPoleContinuousEnv(CartPoleEnv):
                             "are undefined behavior.")
             self.steps_beyond_done += 1
             reward = 0.0
-        state1=np.array(self.state)
-        np.random.seed(2000)
-        return state1 + np.random.uniform(low=-self.observation_noise, high=self.observation_noise, size=state1.shape), reward, done, {}
+
+        return np.array(self.state), reward, done, {}

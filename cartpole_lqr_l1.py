@@ -1,4 +1,5 @@
 import gym
+import math 
 import gym_cartpole_continuous
 import control
 import numpy as np
@@ -59,15 +60,59 @@ g = float(env.gravity)
 frames = []
 observation = env.reset()
 
-def f(x):
-    Am = np.array([[0, 1, 0, 0], [0, 0, -0.98, 0],
-                  [0, 0, 0, 1], [0, 0, 21.56, 0]])
-    return np.matmul(Am, x)
+# def f(x):
+#     Am = np.array([[0, 1, 0, 0], [0, 0, -0.98, 0],
+#                   [0, 0, 0, 1], [0, 0, 21.56, 0]])
+#     return np.matmul(Am, x)
 
 
-def g(x):
-    Bm = np.array([[0, 1, 0, -2]]).T
-    return Bm
+# def g(x):
+#     Bm = np.array([[0, 1, 0, -2]]).T
+#     return Bm
+
+def f(state):
+    gravity = 9.8
+    masscart = 1.0
+    masspole = 0.1
+    total_mass = masspole + masscart
+    length = 0.5  
+    polemass_length = masspole * length
+    force_mag = 10.0
+    next_state=np.zeros(state.shape)
+    x, x_dot, theta, theta_dot = state 
+
+    costheta = math.cos(theta)
+    sintheta = math.sin(theta)
+
+    temp = (polemass_length*theta_dot*theta_dot * sintheta) / total_mass
+
+    theta_ddot= (gravity * sintheta - costheta * temp) / (
+                length * (4.0 / 3.0 - masspole * costheta * costheta / total_mass))
+    x_ddot= temp - polemass_length*theta_ddot*costheta / total_mass
+
+    next_state=(x_dot,x_ddot,theta_dot,theta_ddot)
+    next_state = np.array(next_state)
+    return next_state
+
+def g(state):
+    gravity = 9.8
+    masscart = 1.0
+    masspole = 0.1
+    total_mass = masspole + masscart
+    length = 0.5  
+    polemass_length = masspole * length
+    force_mag = 10.0
+    next_state=np.zeros(state.shape)
+    x, x_dot, theta, theta_dot = state
+    costheta = math.cos(theta)
+    sintheta = math.sin(theta)
+    x_ddot= force_mag/total_mass
+    theta_ddot= -costheta*force_mag /(
+                length * (4.0 / 3.0 - masspole * costheta * costheta / total_mass))
+
+    next_state=(0,x_ddot,0, theta_ddot)
+    next_state = np.array(next_state)
+    return np.expand_dims(next_state, axis = -1)
 
 
 adaptive_controller = L1_adapt(env, f, g)
@@ -80,7 +125,7 @@ for _ in range(700):
     
     u_bl= lqr_policy(observation)
     u =adaptive_controller.get_control_input(observation,u_bl)
-    #u = u_bl    #uncomment to run baseline controller(lqr)
+    # u = u_bl    #uncomment to run baseline controller(lqr)
 
     observation=adaptive_controller.plant(observation,np.expand_dims(u,axis=-1))
 
