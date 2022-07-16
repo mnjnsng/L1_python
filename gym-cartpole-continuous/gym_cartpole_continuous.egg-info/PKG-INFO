@@ -1,0 +1,71 @@
+Metadata-Version: 2.1
+Name: gym-cartpole-continuous
+Version: 0.0.1
+Summary: CartPole environment with continuous action space
+Home-page: https://github.com/koulanurag/gym_cartpole_continuous
+Author: Anurag Koul
+Author-email: koulanurag@gmail.com
+License: MIT License
+        
+        Copyright (c) 2020 Anurag Koul
+        
+        Permission is hereby granted, free of charge, to any person obtaining a copy
+        of this software and associated documentation files (the "Software"), to deal
+        in the Software without restriction, including without limitation the rights
+        to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+        copies of the Software, and to permit persons to whom the Software is
+        furnished to do so, subject to the following conditions:
+        
+        The above copyright notice and this permission notice shall be included in all
+        copies or substantial portions of the Software.
+        
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+        IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+        AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+        LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+        OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+        SOFTWARE.
+        
+Platform: UNKNOWN
+Requires-Python: >=3.5
+Description-Content-Type: text/markdown
+Provides-Extra: testing
+License-File: LICENSE
+
+# gym-cartpole-continuous
+It's a light wrapper around gym's [CartPole](https://github.com/openai/gym/blob/master/gym/envs/classic_control/cartpole.py) env. modified to have continuous action space `(one-line change)`
+
+![Build Status](https://travis-ci.com/koulanurag/gym-cartpole-continuous.svg?branch=master)
+
+## Installation
+```bash
+cd gym-cartpole-continuous
+pip install -e . 
+```
+
+## Usage:
+```python
+>>> import gym
+>>> import gym_cartpole_continuous
+>>> env = gym.make('CartPoleContinuous-v0')
+>>> env.action_space
+Box(1,)
+>>> env.action_space.sample()
+array([0.85574186], dtype=float32)
+```
+
+Alternate way to create the environment:
+```python
+>>> import gym
+>>> env = gym.make('gym_cartpole_continuous:CartPoleContinuous-v0')
+```
+
+## Env:
+
+|Env|Attributes|
+|:----|:----|
+|`CartPoleContinuous-v0`| Max Steps: 200|
+|`CartPoleContinuous-v1`| Max Steps: 500|
+
+
