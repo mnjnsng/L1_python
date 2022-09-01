@@ -7,7 +7,7 @@ import control
 
 class L1_adapt(object):
 
-    def __init__(self, env, f, g, wc=50, Ts=0.02):
+    def __init__(self, env, f, g,x, wc=10, Ts=0.02):
         '''
         xdot = f(x) + g(x)u (control-affine structure)
         f: mapping from state space to state space (R^n)
@@ -29,17 +29,19 @@ class L1_adapt(object):
             [-self.wc]), B=np.array([1]), C=np.array([self.wc]))
 
         # Initialization of state, error and input vectors
-        self.x = np.zeros((self._env.observation_space.shape[0], 1))
+        # self.x = np.zeros((self._env.observation_space.shape[0], 1))
+        self.x = x[...,np.newaxis]
         self.x_tilde = np.zeros((self._env.observation_space.shape[0], 1))
         self.u = np.zeros((self._env.action_space.shape[0], 1))
         self.n = self.g(self.x).shape[0]
         self.m = self.g(self.x).shape[1]
+        self.force_mag = 10
 
         # Initialize parameters needed for L1 controller
         # Choice of Hurwitz matrix used in piece-wise constant adaptation
         self.As = -np.eye(self.n)
         # Initialization of predicted state vector
-        self.x_hat = np.zeros(shape=(self.n, 1))
+        self.x_hat = self.x
 
     def update_error(self):
         return self.x_hat-self.x
@@ -69,7 +71,11 @@ class L1_adapt(object):
 
     def state_predictor(self, x, u, sigma_hat_m, sigma_hat_um):
 
-        x_hat_dot = self.f(x)+self.g(x)@(u+sigma_hat_m)+np.matmul(
+
+        # print(self.f(x).shape)
+        # print(self.g(x).shape)
+
+        x_hat_dot = self.f(x)+self.g(x)@(u + sigma_hat_m)+np.matmul(
             self.g_perp(x), sigma_hat_um)+np.matmul(self.As, self.x_tilde)
         x_hat = self.x_hat + x_hat_dot*self.Ts  # Euler extrapolation
         return x_hat
@@ -78,9 +84,8 @@ class L1_adapt(object):
 
         self.x = x[..., np.newaxis]
         self.x_tilde = self.update_error()
-        
         sigma_hat_m, sigma_hat_um = self.adaptive_law(self.x_tilde)
-
+        
         u_l1 = -self.lpf.get_next_state(sigma_hat_m)
         # u_l1 = -sigma_hat_m
         u = u_bl+u_l1
@@ -97,4 +102,4 @@ class L1_adapt(object):
         # self.x_tilde = self.update_error()
 
         
-        return u.squeeze(0)
+        return u.squeeze(0), sigma_hat_m.squeeze(0).squeeze(0), sigma_hat_um.squeeze(1), self.x_hat[2]
